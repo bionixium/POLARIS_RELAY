@@ -57,7 +57,7 @@ services:
   # MediaMTX : cœur de distribution (SRT / HLS / WebRTC), auth publication/lecture
   # ---------------------------------------------------------------------------
   mediamtx:
-    image: bluenviron/mediamtx:${MEDIAMTX_TAG:-v1.19.2}
+    image: bluenviron/mediamtx:${MEDIAMTX_TAG:-1.19.2}
     container_name: polaris-mediamtx
     restart: unless-stopped
     volumes:
