@@ -1,0 +1,92 @@
+# =============================================================================
+#  Polaris Relay - Configuration MediaMTX
+#  Cœur de distribution vidéo : reçoit le SRT (via srtla_rec) et le redistribue
+#  en SRT / HLS / WebRTC vers OBS et les autres consommateurs.
+#
+#  Les identifiants __PUBLISH_USER__ / __PUBLISH_PASS__ / __READ_USER__ /
+#  __READ_PASS__ sont remplacés automatiquement par install.sh (scripts/genkeys.sh).
+#  Ne pas committer ce fichier une fois les clés injectées.
+# =============================================================================
+
+logLevel: info
+logDestinations: [stdout]
+logFile: /dev/null
+
+# --- Timeouts / lecture ---
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+udpMaxPayloadSize: 1472
+
+# -----------------------------------------------------------------------------
+# API & métriques (bindées sur l'IP Tailscale via docker-compose -> admin only)
+# -----------------------------------------------------------------------------
+api: yes
+apiAddress: :9997
+
+metrics: yes
+metricsAddress: :9998
+
+pprof: no
+
+# -----------------------------------------------------------------------------
+# Authentification interne : une clé de publication, une clé de lecture
+# -----------------------------------------------------------------------------
+authMethod: internal
+authInternalUsers:
+  # Caméras (IRL Pro) : autorisées à publier
+  - user: __PUBLISH_USER__
+    pass: __PUBLISH_PASS__
+    ips: []
+    permissions:
+      - action: publish
+
+  # OBS / régie : autorisés à lire
+  - user: __READ_USER__
+    pass: __READ_PASS__
+    ips: []
+    permissions:
+      - action: read
+
+  # Accès local uniquement pour l'API/métriques (Portainer, Netdata, scripts)
+  - user: any
+    ips: ['127.0.0.1', '::1']
+    permissions:
+      - action: api
+      - action: metrics
+      - action: pprof
+
+# -----------------------------------------------------------------------------
+# Protocoles
+# -----------------------------------------------------------------------------
+rtsp: no
+rtmp: no
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: lowLatency
+hlsAlwaysRemux: no
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8889
+
+# SRT : point d'entrée depuis srtla_rec (publication) et point de lecture OBS
+srt: yes
+srtAddress: :8890
+
+# -----------------------------------------------------------------------------
+# Chemins (un par caméra). Ajouter/retirer selon les besoins de l'événement.
+# streamid publication : publish:camera1:<PUBLISH_USER>:<PUBLISH_PASS>
+# streamid lecture      : read:camera1:<READ_USER>:<READ_PASS>
+# -----------------------------------------------------------------------------
+paths:
+  camera1:
+  camera2:
+  interview:
+  backstage:
+  drone:
+
+  # Accepte tout autre nom de flux non listé ci-dessus (pratique en événement).
+  # Commenter cette ligne pour n'autoriser QUE les caméras déclarées.
+  all_others:

@@ -1,0 +1,140 @@
+# =============================================================================
+#  Polaris Relay - Orchestration Docker
+#  Plateforme de contribution vidéo (SRTLA -> SRT -> MediaMTX -> OBS)
+# =============================================================================
+#  Services publics (Internet)      : srtla (5000/udp), mediamtx SRT (8890/udp)
+#  Services admin (Tailscale only)  : portainer, netdata, API MediaMTX
+#  Ces derniers sont bindés sur ${TS_IP} (IP Tailscale) et donc invisibles
+#  depuis Internet, indépendamment du contournement UFW par Docker.
+# =============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+networks:
+  polaris:
+    name: polaris
+
+volumes:
+  portainer_data:
+  netdata_config:
+  netdata_lib:
+  netdata_cache:
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Récepteur SRTLA : agrégation des liens réseau des smartphones (IRL Pro)
+  # ---------------------------------------------------------------------------
+  srtla:
+    build:
+      context: ./scripts/srtla
+      args:
+        SRTLA_REF: ${SRTLA_REF:-main}
+    image: polaris/srtla-rec:latest
+    container_name: polaris-srtla
+    restart: unless-stopped
+    environment:
+      SRTLA_PORT: 5000
+      SRT_HOST: mediamtx
+      SRT_PORT: 8890
+    ports:
+      - "${SRTLA_PORT:-5000}:5000/udp"
+    depends_on:
+      - mediamtx
+    networks:
+      - polaris
+    labels:
+      # Image construite localement (pas de registre) : Watchtower ne peut pas
+      # la mettre à jour -> on l'exclut. La reconstruire via ./update.sh.
+      com.centurylinklabs.watchtower.enable: "false"
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # MediaMTX : cœur de distribution (SRT / HLS / WebRTC), auth publication/lecture
+  # ---------------------------------------------------------------------------
+  mediamtx:
+    image: bluenviron/mediamtx:${MEDIAMTX_TAG:-v1.19.2}
+    container_name: polaris-mediamtx
+    restart: unless-stopped
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    ports:
+      - "${SRT_PORT:-8890}:8890/udp"        # SRT (publication directe + lecture OBS)
+      - "${HLS_PORT:-8888}:8888/tcp"         # HLS (option, lecture navigateur)
+      - "${WEBRTC_PORT:-8889}:8889/tcp"      # WebRTC (option, faible latence)
+      - "${WEBRTC_PORT:-8889}:8889/udp"      # WebRTC ICE/UDP
+      # --- Admin : accessible uniquement via Tailscale ---
+      - "${TS_IP:-127.0.0.1}:9997:9997"      # API MediaMTX
+      - "${TS_IP:-127.0.0.1}:9998:9998"      # Métriques Prometheus
+    networks:
+      - polaris
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Portainer : interface graphique Docker (admin via Tailscale)
+  # ---------------------------------------------------------------------------
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: polaris-portainer
+    restart: unless-stopped
+    command: --http-disabled
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    ports:
+      - "${TS_IP:-127.0.0.1}:9443:9443"      # HTTPS admin (Tailscale only)
+    networks:
+      - polaris
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Watchtower : mise à jour automatique des images Docker
+  # ---------------------------------------------------------------------------
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: polaris-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      # Tous les jours à 04h00 (laisse les images se maj hors événement)
+      WATCHTOWER_SCHEDULE: "${WATCHTOWER_SCHEDULE:-0 0 4 * * *}"
+    networks:
+      - polaris
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Netdata : supervision (CPU / RAM / réseau / débit) - admin via Tailscale
+  # ---------------------------------------------------------------------------
+  netdata:
+    image: netdata/netdata:latest
+    container_name: polaris-netdata
+    restart: unless-stopped
+    hostname: polaris-relay
+    pid: host
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdata_config:/etc/netdata
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "${TS_IP:-127.0.0.1}:19999:19999"    # Dashboard (Tailscale only)
+    networks:
+      - polaris
+    logging: *default-logging

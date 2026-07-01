@@ -1,0 +1,18 @@
+# Secrets & état local
+.env
+.apikey
+
+# MediaMTX avec clés injectées (garder mediamtx.yml comme modèle en repo,
+# décommenter si vous générez une copie active séparée)
+# mediamtx.local.yml
+
+# Logs & sauvegardes
+logs/*
+!logs/.gitkeep
+backups/*
+!backups/.gitkeep
+
+# Divers
+*.log
+*.bak
+.DS_Store
