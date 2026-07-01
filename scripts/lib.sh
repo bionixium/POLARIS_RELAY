@@ -41,10 +41,15 @@ compose() {
   fi
 }
 
-# Génère un secret alphanumérique (longueur par défaut 24)
+# Génère un secret alphanumérique (longueur par défaut 24).
+# Isolé dans un sous-shell SANS errexit/pipefail : quand 'head' ferme le tube,
+# 'tr' reçoit un SIGPIPE (sortie non nulle) qui ne doit PAS avorter l'appelant.
 gen_secret() {
   local len="${1:-24}"
-  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len"
+  (
+    set +e +o pipefail
+    LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len"
+  )
 }
 
 # Charge le .env s'il existe.
