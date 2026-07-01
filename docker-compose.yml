@@ -93,9 +93,11 @@ services:
 
   # ---------------------------------------------------------------------------
   # Watchtower : mise à jour automatique des images Docker
+  # Fork maintenu nickfedor/watchtower (containrrr/watchtower archivé le
+  # 2025-12-17 : son client API Docker 1.25 est rejeté par Docker >= 25).
   # ---------------------------------------------------------------------------
   watchtower:
-    image: containrrr/watchtower:latest
+    image: nickfedor/watchtower:latest
     container_name: polaris-watchtower
     restart: unless-stopped
     volumes:
@@ -103,8 +105,9 @@ services:
     environment:
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_INCLUDE_RESTARTING: "true"
-      # Tous les jours à 04h00 (laisse les images se maj hors événement)
-      WATCHTOWER_SCHEDULE: "${WATCHTOWER_SCHEDULE:-0 0 4 * * *}"
+      # Planning cron 6 champs. Défini ici (et non dans .env) pour éviter tout
+      # souci de guillemets/espaces à l'interpolation. Tous les jours à 04h00.
+      WATCHTOWER_SCHEDULE: "0 0 4 * * *"
     networks:
       - polaris
     logging: *default-logging
