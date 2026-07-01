@@ -47,12 +47,14 @@ gen_secret() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len"
 }
 
-# Charge le .env s'il existe
+# Charge le .env s'il existe.
+# set -f désactive le globbing (évite l'expansion de '*' dans une valeur non
+# quotée type cron) ; set -a exporte les variables lues.
 load_env() {
   if [ -f "${POLARIS_ROOT}/.env" ]; then
-    set -a
+    set -a -f
     # shellcheck disable=SC1091
     . "${POLARIS_ROOT}/.env"
-    set +a
+    set +a +f
   fi
 }
