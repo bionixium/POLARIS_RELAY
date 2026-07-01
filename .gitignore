@@ -2,6 +2,10 @@
 .env
 .apikey
 
+# Fiches régie / setup (contiennent la clé de lecture) — ne jamais committer
+FICHE-REGIE*.md
+OBS-Setup*.pdf
+
 # MediaMTX avec clés injectées (garder mediamtx.yml comme modèle en repo,
 # décommenter si vous générez une copie active séparée)
 # mediamtx.local.yml
