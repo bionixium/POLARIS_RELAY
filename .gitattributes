@@ -1,0 +1,13 @@
+# Fins de ligne : LF partout (les scripts s'exécutent sur Debian 12).
+# Évite les erreurs bash "bad interpreter: ...^M" après clone depuis Windows.
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.env   text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+.gitignore text eol=lf
+.gitkeep text eol=lf
